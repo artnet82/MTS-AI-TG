@@ -13,21 +13,6 @@
 
 Замените `YOUR_BOT_TOKEN` на токен вашего Telegram бота и `chat_id` на идентификатор чата в Telegram, куда вы хотите отправить аудиофайл.
 
-Нужно создать  файл config.ini в папке проекта: 
-
-[API]
-server_address = audiogram.mts.ai:443
-
-[Auth]
-sso_server_url = https://isso.mts.ru/auth/
-realm_name = mts
-client_id = <client_id>
-client_secret = <client_secret>
-
-
-
-
-
 Для упаковки в Docker-контейнер вам понадобится создать Dockerfile
 
 # Используем базовый образ с предустановленным Python
