@@ -15,20 +15,6 @@ import tts_pb2_grpc
 
 
 def read_api_config(file_name: str = "config.ini") -> ConfigParser:
-    """
-    Загружает параметры соединения с API и авторизации из ini-файла.
-    Структура файла и примеры значений:
-
-    [API]
-    server_address: audiogram.mts.ai:443
-
-    [Auth]
-    sso_server_url: https://isso.mts.ru/auth/
-    realm_name: mts
-    client_id: <client id>
-    client_secret: <client secret>
-    """
-
     config = ConfigParser()
     config.read(file_name)
 
@@ -36,7 +22,7 @@ def read_api_config(file_name: str = "config.ini") -> ConfigParser:
 
 
 def get_request_metadata(auth_config: Mapping[str, str]) -> list[tuple[str, str]]:
-    # Получаем метаданные запроса и токен доступа
+   
     sso_connection = KeycloakOpenID(
         auth_config["sso_server_url"],
         auth_config["realm_name"],
@@ -51,7 +37,7 @@ def get_request_metadata(auth_config: Mapping[str, str]) -> list[tuple[str, str]
     trace_id = str(random.randint(1000, 9999))
     print(f"Trace id: {trace_id}")
 
-    # Создаем список метаданных
+    
     metadata = [
         ("authorization", f"Bearer {access_token}"),
         ("external_trace_id", trace_id),
@@ -61,21 +47,21 @@ def get_request_metadata(auth_config: Mapping[str, str]) -> list[tuple[str, str]
 
 
 def save_audio_file(response: tts_pb2.SynthesizeSpeechResponse, file_path: str):
-    # Сохраняем аудиофайл на диск
+   
     with open(file_path, "wb") as f:
         f.write(response.audio_content)
     print(f"Аудиофайл сохранен: {file_path}")
 
 
 def send_audio_file_to_telegram(file_path: str, chat_id: int, bot_token: str):
-    # Отправляем аудиофайл в Telegram
+     
     updater = Updater(token=bot_token)
     updater.bot.send_audio(chat_id=chat_id, audio=open(file_path, "rb"))
     print("Аудиофайл отправлен в Telegram")
 
 
 def synthesize_file(text: str, api_address: str, auth_config: Mapping[str, str]) -> str:
-    # Создаем запрос с текстом для синтеза речи
+     
     request = tts_pb2.SynthesizeSpeechRequest(
         text=text,
         encoding=tts_pb2.AudioEncoding.LINEAR_PCM,
@@ -117,27 +103,53 @@ def synthesize_file(text: str, api_address: str, auth_config: Mapping[str, str])
             wait_for_ready=True,
         )
 
-        # Сохраняем аудиофайл
+         
         save_audio_file(response, file_path)
 
-        # Отправляем аудиофайл в Telegram
+         
         send_audio_file_to_telegram(file_path, chat_id=123456789, bot_token="YOUR_BOT_TOKEN")
+
+
+def start_handler(update: Update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Привет! Отправьте мне текст, и я синтезирую его в речь.")
+
+
+def text_handler(update: Update, context):
+    text = update.message.text
+   api_address = config["API"]["server_address"]
+    auth_config = config["Auth"]
+
+    synthesize_file(text, api_address, auth_config)
+
+     
+    audio_file_path = "path/to/audio/file.wav"
+    context.bot.send_audio(chat_id=update.effective_chat.id, audio=open(audio_file_path, "rb"))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("text", type=str, help="текст для синтеза речи")
-
+    parser.add_argument("text", type=str, nargs="?", help="текст для синтеза речи")
     args = parser.parse_args()
 
     config = read_api_config()
 
-    synthesize_file(
-        args.text,
-        config["API"]["server_address"],
-        config["Auth"],
-    )
+     
+    updater = Updater(token=config["Telegram"]["bot_token"], use_context=True)
+
+     
+    dispatcher = updater.dispatcher
+
+    
+    start_handler = CommandHandler("start", start_handler)
+    text_handler = MessageHandler(Filters.text, text_handler)
+
+   
+    dispatcher.add_handler(start_handler)
+    dispatcher.add_handler(text_handler)
+
+     
+    updater.start_polling()
 
 
-# Автор: Немтырев Алексей
-# Сайт: https://t.me/EXPRTI
-# Лицензия: ЦКБ-РФ №0000111
+
+#  https://t.me/EXPRTI
