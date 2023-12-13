@@ -19,7 +19,7 @@ client_id = <client_id>
 client_secret = <client_secret>
 
 
-Для упаковик в Docker-контейнер вам понадобится создать Dockerfile
+Для упаковки в Docker-контейнер вам понадобится создать Dockerfile
 
 # Используем базовый образ с предустановленным Python
 FROM python:3.9
