@@ -1,0 +1,88 @@
+import feedparser
+import grpc
+import argparse
+import configparser
+import random
+import os
+from telegram import Bot
+
+# Чтение конфигурационного файла
+def read_config():
+    config = configparser.ConfigParser()
+    config.read("config.ini")
+    return config
+
+# Получение случайного идентификатора трассировки
+def generate_trace_id():
+    return str(random.randint(1, 1000000))
+
+# Получение аудиофайла с gRPC-сервера и сохранение его на диск
+def save_audio_file(audio_data, output_file):
+    with open(output_file, "wb") as file:
+        file.write(audio_data)
+
+# Отправка аудиофайла в чат в Telegram
+def send_audio_file_to_telegram(bot_token, chat_id, audio_file):
+    bot = Bot(token=bot_token)
+    bot.send_audio(chat_id=chat_id, audio=open(audio_file, "rb"))
+
+# Синтез речи на gRPC-сервере
+def synthesize_text(text, grpc_server_address, grpc_server_port):
+    channel = grpc.insecure_channel(f"{grpc_server_address}:{grpc_server_port}")
+    stub = YourGRPCStub(channel)
+
+    request = YourGRPCRequest(
+        text=text,
+        trace_id=generate_trace_id(),
+        # Другие параметры запроса, если необходимо
+    )
+
+    response = stub.YourGRPCMethod(request)
+    audio_data = response.audio_data
+
+    return audio_data
+
+# Основная функция для обработки ленты новостей
+def process_news_feed(config):
+    # Получение настроек API из конфигурационного файла
+    grpc_server_address = config.get("API", "grpc_server_address")
+    grpc_server_port = config.get("API", "grpc_server_port")
+    bot_token = config.get("Telegram", "bot_token")
+    chat_id = config.get("Telegram", "chat_id")
+    news_feed_url = config.get("NewsFeed", "feed_url")
+
+    # Получение ленты новостей
+    feed = feedparser.parse(news_feed_url)
+
+    for entry in feed.entries:
+        # Извлечение текста из элемента ленты
+        text = entry.title
+
+        # Синтез речи на gRPC-сервере
+        audio_data = synthesize_text(text, grpc_server_address, grpc_server_port)
+
+        # Сохранение аудиофайла
+        audio_file = f"{generate_trace_id()}.wav"
+        save_audio_file(audio_data, audio_file)
+
+        # Отправка аудиофайла в Telegram
+        send_audio_file_to_telegram(bot_token, chat_id, audio_file)
+
+        # Удаление временного аудиофайла
+        os.remove(audio_file)
+
+# Основная функция скрипта
+def main():
+    # Парсинг аргументов командной строки
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", help="Path to the configuration file", required=True)
+    args = parser.parse_args()
+
+    # Чтение конфигурационного файла
+    config = read_config(args.config)
+
+    # Обработка ленты новостей и отправка в Telegram
+    process_news_feed(config)
+
+if __name__ == "__main__":
+    main()
